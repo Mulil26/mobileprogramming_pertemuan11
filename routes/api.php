@@ -3,6 +3,7 @@
 use App\Http\Controllers\API\ProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 Route::apiResource('products', ProductController::class);
 
@@ -34,3 +35,21 @@ return response()->json(['message' => 'API route works']);
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
+
+
+Route::get('/products/{filename}', function ($filename) {
+    // Tentukan path absolut file di dalam folder storage
+    $path = storage_path('app/public/products/' . $filename);
+
+    // Cek fisik file secara langsung
+    if (!file_exists($path)) {
+        return response()->json(['message' => 'File tidak ditemukan'], 404);
+    }
+
+    // Mengembalikan file langsung dengan injeksi header CORS yang mutlak
+    return response()->file($path, [
+        'Access-Control-Allow-Origin' => '*',
+        'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+        'Access-Control-Allow-Headers' => 'Origin, Content-Type, Accept, Authorization',
+    ]);
+});

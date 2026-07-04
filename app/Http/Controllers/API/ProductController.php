@@ -128,59 +128,75 @@ class ProductController extends Controller
 
     public function update(Request $request, string $id)
     {
-        $product = Product::find($id);
+        try {
+            $product = Product::find($id);
 
-        if (!$product) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Product not found'
-            ], Response::HTTP_NOT_FOUND);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'name'        => 'sometimes|required|string|max:255',
-            'description' => 'nullable|string',
-            'price'       => 'sometimes|required|numeric|min:0',
-            'stock'       => 'sometimes|required|integer|min:0',
-            'image'       => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors'  => $validator->errors()
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-
-        if ($request->has('name')) $product->name = $request->name;
-        if ($request->has('description')) $product->description = $request->description;
-        if ($request->has('price')) $product->price = $request->price;
-        if ($request->has('stock')) $product->stock = $request->stock;
-
-
-        if ($request->hasFile('image')) {
-
-            if ($product->image && Storage::disk('public')->exists($product->image)) {
-                Storage::disk('public')->delete($product->image);
+            if (!$product) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product not found'
+                ], Response::HTTP_NOT_FOUND);
             }
 
-            $path = $request->file('image')->store('products','public');
-            $product->image = $path;        
+            // PERBAIKAN 1: Ganti 'description' menjadi 'descriptions'
+            $validator = Validator::make($request->all(), [
+                'name'         => 'sometimes|required|string|max:255',
+                'descriptions' => 'nullable|string', // typo diperbaiki
+                'price'        => 'sometimes|required|numeric|min:0',
+                'stock'        => 'sometimes|required|integer|min:0',
+                'image'        => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors'  => $validator->errors()
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            // Simpan data text
+            if ($request->has('name')) $product->name = $request->name;
+            if ($request->has('descriptions')) $product->descriptions = $request->descriptions; // typo diperbaiki
+            if ($request->has('price')) $product->price = $request->price;
+            if ($request->has('stock')) $product->stock = $request->stock;
+
+            // Debugging (Opsional: akan muncul di storage/logs/laravel.log)
+            Log::info('Update Product ID: ' . $id, [
+                'has_file' => $request->hasFile('image'),
+                'all_files' => $request->allFiles()
+            ]);
+
+            // PERBAIKAN 2: Penanganan Gambar
+            if ($request->hasFile('image')) {
+                // Hapus gambar lama jika ada
+                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                    Storage::disk('public')->delete($product->image);
+                }
+
+                // Simpan gambar baru
+                $path = $request->file('image')->store('products', 'public');
+                $product->image = $path;        
+            }
+
+            $product->save();
+
+            // Refresh Image URL
+            $product->image_url = $product->image 
+                ? asset('storage/' . $product->image) 
+                : null;
+
+            return response()->json([
+                'success' => true,
+                'data'    => $product,
+                'message' => 'Product updated successfully'
+            ], Response::HTTP_OK);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating product: ' . $e->getMessage()
+            ], 500);
         }
-
-        $product->save();
-
-
-        $product->image_url = $product->image 
-            ? asset('storage/' . $product->image) 
-            : null;
-
-        return response()->json([
-            'success' => true,
-            'data'    => $product,
-            'message' => 'Product updated successfully'
-        ], Response::HTTP_OK);
     }
 
 

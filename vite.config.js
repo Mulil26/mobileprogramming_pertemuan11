@@ -8,4 +8,18 @@ export default defineConfig({
             refresh: true,
         }),
     ],
+    proxy: {
+      // Semua request ke /storage akan diteruskan ke backend Laravel
+      '/storage': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+      // Kalau ada API, bisa tambahkan juga
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
 });
